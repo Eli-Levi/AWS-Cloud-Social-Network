@@ -46,7 +46,7 @@ const defaultStackSynthesizer = new DefaultStackSynthesizer({
 });
 
 const app = new cdk.App();
-new RestaurantsCdkStack(app, 'RestaurantsCdkStack', {
+new RestaurantsCdkStack(app, 'SocialNetworkCdkStack', {
   synthesizer: defaultStackSynthesizer,
   /* If you don't specify 'env', this stack will be environment-agnostic.
    * Account/Region-dependent features and context lookups will not work,
