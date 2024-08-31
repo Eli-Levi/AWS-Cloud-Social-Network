@@ -6,18 +6,12 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as iam from 'aws-cdk-lib/aws-iam';
 
-  /*
-  // Environment variables
-  const commonEnv = {
-    USERS_TABLE_NAME: usersTable.tableName,
-    BUCKET_NAME: profilePicturesBucket.bucketName,
-  };*/
-
 export class RestaurantsCdkStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
     const labRole = iam.Role.fromRoleArn(this, 'Role', "arn:aws:iam::294813114505:role/LabRole", {mutable: false});
+    
     // Create DynamoDB table  
     const table = this.createDynamoDBTable(labRole);
 
@@ -41,7 +35,7 @@ export class RestaurantsCdkStack extends cdk.Stack {
       runtime: lambda.Runtime.PYTHON_3_12,
       code: lambda.Code.fromAsset('../service-files/lambda'), 
       handler: 'createUser.handler',
-      role: labRole, // important for the lab so the cdk will not create a new role,
+      role: labRole,
       environment: {
         TABLE_NAME: table.tableName,
       },
@@ -54,7 +48,7 @@ export class RestaurantsCdkStack extends cdk.Stack {
       runtime: lambda.Runtime.PYTHON_3_12,
       code: lambda.Code.fromAsset('../service-files/lambda'),
       handler: 'deleteUser.handler',
-      role: labRole, // important for the lab so the cdk will not create a new role,
+      role: labRole,
       environment: {
         TABLE_NAME: table.tableName,
       },
@@ -67,7 +61,7 @@ export class RestaurantsCdkStack extends cdk.Stack {
       runtime: lambda.Runtime.PYTHON_3_12,
       code: lambda.Code.fromAsset('../service-files/lambda'),
       handler: 'getUser.handler',
-      role: labRole, // important for the lab so the cdk will not create a new role,
+      role: labRole,
       environment: {
         TABLE_NAME: table.tableName,
       },
@@ -80,13 +74,13 @@ export class RestaurantsCdkStack extends cdk.Stack {
       runtime: lambda.Runtime.PYTHON_3_12,
       code: lambda.Code.fromAsset('../service-files/lambda'), 
       handler: 'uploadProfilePicture.handler',
-      role: labRole, // important for the lab so the cdk will not create a new role,
+      role: labRole,
       environment: {
           BUCKET_NAME: profilePicturesBucket.bucketName,
       },
     });
 
-    profilePicturesBucket.grantReadWrite(uploadProfilePictureLambda); // perhaps instead of grandPut()?
+    profilePicturesBucket.grantReadWrite(uploadProfilePictureLambda);
 
     // Create an API Gateway REST API
     const api = new apigateway.RestApi(this, 'SocialNetworkApi', {
@@ -94,10 +88,26 @@ export class RestaurantsCdkStack extends cdk.Stack {
       description: 'This service handles user operations for the social network.',
     });
 
-    // Create the 'users' resource once
+    // Create the 'users' resource
     const users = api.root.addResource('users');
   
-    users.addMethod('POST', new apigateway.LambdaIntegration(createUserLambda,  {
+    // Create the '{id}' resource under 'users'
+    const userById = users.addResource('{id}');
+
+    // Map the GET method to the getUserLambda
+    userById.addMethod('GET', new apigateway.LambdaIntegration(getUserLambda)); // GET /users/{id}
+
+    // Map the DELETE method to the deleteUserLambda
+    userById.addMethod('DELETE', new apigateway.LambdaIntegration(deleteUserLambda)); // DELETE /users/{id}
+  
+    // Create the 'profile-picture' resource under '{id}'
+    const profilePicture = userById.addResource('profile-picture');
+    
+    // Map the PUT method to the uploadProfilePictureLambda
+    profilePicture.addMethod('PUT', new apigateway.LambdaIntegration(uploadProfilePictureLambda)); // PUT /users/{id}/profile-picture
+
+    // Add the POST method for creating a new user under /users
+    users.addMethod('POST', new apigateway.LambdaIntegration(createUserLambda, {
       proxy: false,
       integrationResponses: [
         {
@@ -117,62 +127,7 @@ export class RestaurantsCdkStack extends cdk.Stack {
         }
       ]
     }); // POST /users
-
-    // Create the '{id}' resource under 'users'
-    //const user = users.addResource('{id}');
-    users.addMethod('DELETE', new apigateway.LambdaIntegration(deleteUserLambda,  {
-      proxy: false,
-      integrationResponses: [
-        {
-          statusCode: "200",
-          responseParameters: {
-            "method.response.header.Content-Type": "'application/json'"
-          }
-        }
-      ]
-    }), {
-      methodResponses: [
-        {
-          statusCode: "200",
-          responseParameters: {
-            'method.response.header.Content-Type': true
-          }
-        }
-      ]
-    }); // DELETE /users/{id}
-
-    const getUserIntegration = new apigateway.LambdaIntegration(getUserLambda);
-    users.addMethod('GET', getUserIntegration); // GET /users/{id}
-  
-    // Add a new route for generating a pre-signed URL under the '{id}' resource
-    //const profilePicture = users.addResource('profile-picture');
-    users.addMethod('PUT', new apigateway.LambdaIntegration(uploadProfilePictureLambda,  {
-      proxy: false,
-      integrationResponses: [
-        {
-          statusCode: "200",
-          responseParameters: {
-            "method.response.header.Content-Type": "'application/json'"
-          }
-        }
-      ]
-    }), {
-      methodResponses: [
-        {
-          statusCode: "200",
-          responseParameters: {
-            'method.response.header.Content-Type': true
-          }
-        }
-      ]
-    }); // POST /users/{id}/profile-picture*/
-
-    /*// Output API Gateway URL
-    new cdk.CfnOutput(this, 'APIGatewayURL', {
-      value: api.url,
-      description: 'API Gateway URL: ',
-    });*/
-}
+  }
 
   private createDynamoDBTable(labRole: cdk.aws_iam.IRole) {
    // DynamoDB Table for Users
@@ -192,11 +147,10 @@ export class RestaurantsCdkStack extends cdk.Stack {
 
   usersTable.grantFullAccess(labRole);
 
+  new cdk.CfnOutput(this, 'TableName', {
+    value: usersTable.tableName,
+  });
 
-    new cdk.CfnOutput(this, 'TableName', {
-      value: usersTable.tableName,
-    });
-
-    return usersTable;
+  return usersTable;
   }
 }

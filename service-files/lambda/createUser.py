@@ -7,7 +7,7 @@ users_table = dynamodb.Table("usersTable")
 def handler(event, context):
     user_name = event.get("user")
     email = event.get("email")
-    user_id = event.get("userId")  # This is correct
+    user_id = event.get("userId") 
 
     if not (user_name and email and user_id):
         return {"statusCode": 400, "body": "missing email, username, or user ID"}

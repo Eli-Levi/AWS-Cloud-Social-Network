@@ -7,10 +7,10 @@ users_table = dynamodb.Table("usersTable")
 bucket_name = "eli-levi-profile-pictures-bucket"
 
 def handler(event, context):
-    user_id = event.get("queryStringParameters").get("userId")
+    user_id = event['pathParameters']['id']
 
     if not user_id:
-        return {"statusCode": 400, "body": "missing user ID"}
+        return {"statusCode": 400, "body": "Missing user ID"}
     
     try:
         userIdResponse = users_table.get_item(Key={"userId": user_id})
@@ -21,16 +21,9 @@ def handler(event, context):
 
             if user_item.get("hasProfilePicture", False):
                 try:
-                    # Generate the S3 object key
-                    s3_key = f"{user_id}.*"
-                    
-                    # List objects with the given prefix
                     response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=user_id)
                     if 'Contents' in response and len(response['Contents']) > 0:
-                        # Assuming there's only one object with this prefix
                         s3_key = response['Contents'][0]['Key']
-                        
-                        # Generate the presigned URL
                         profile_picture_url = s3_client.generate_presigned_url(
                             'get_object',
                             Params={'Bucket': bucket_name, 'Key': s3_key},
@@ -42,7 +35,6 @@ def handler(event, context):
                         'body': json.dumps({'message': 'Error generating presigned URL', 'error': str(s3_error)})
                     }
 
-            # Add the ProfilePicture key to the response
             user_item["ProfilePicture"] = profile_picture_url
             
             return {
