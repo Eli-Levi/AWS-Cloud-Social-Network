@@ -2,9 +2,7 @@
 import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
 import { RestaurantsCdkStack } from '../lib/restaurants-cdk-stack';
-
 import { DefaultStackSynthesizer } from 'aws-cdk-lib';
-
 
 const defaultStackSynthesizer = new DefaultStackSynthesizer({
   // Name of the S3 bucket for file assets
@@ -59,9 +57,9 @@ new RestaurantsCdkStack(app, 'SocialNetworkCdkStack', {
   /* Uncomment the next line if you know exactly what Account and Region you
    * want to deploy the stack to. */
 
-
   // Students TODO Account Details: change the account and region to your own
   env: { account: '294813114505', region: 'us-east-1' },
 
   /* For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html */
 });
+
